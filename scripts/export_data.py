@@ -158,6 +158,18 @@ def ensure_playermatchstats_columns(df: pd.DataFrame) -> pd.DataFrame:
 # Not essential data: a season that has not been ingested simply has no
 # rows, and fetch_all_rows already returns an empty frame on error, so a
 # missing table degrades to empty files rather than failing the export.
+#
+# Two places the column list deliberately departs from the table:
+#   - the surrogate `id` on bzzoiro_lineups and bzzoiro_average_positions
+#     is a storage detail with no meaning to a reader, so it is dropped;
+#   - bzzoiro_lineups.confidence has no 2025-2026 counterpart. It is left
+#     out to keep the header identical across seasons; add it to both if
+#     it is ever wanted.
+# match_enrichment goes the other way: 2025-2026 carries five columns
+# (home/away_shot_model_xg, incident_timing_coverage, unlocated_card_count,
+# quarantined_incident_count) that this schema has no home for, and two
+# it lacks (attendance, lineup_confidence). Exporting what the table
+# actually holds beats reindexing five columns of guaranteed blanks.
 BZZOIRO_EXPORTS = {
     'shots.csv': ('bzzoiro_shots', [
         'match_id', 'shot_index', 'minute', 'added_time', 'is_home',
@@ -169,6 +181,35 @@ BZZOIRO_EXPORTS = {
     'xg_by_minute.csv': ('bzzoiro_xg_by_minute', [
         'match_id', 'minute', 'home_xg', 'away_xg',
         'home_cumulative_xg', 'away_cumulative_xg',
+    ]),
+    'lineups.csv': ('bzzoiro_lineups', [
+        'match_id', 'team_side', 'team_code', 'player_id', 'player_name',
+        'position', 'jersey_number', 'is_starting', 'formation',
+        'lineup_status',
+    ]),
+    'incidents.csv': ('bzzoiro_incidents', [
+        'match_id', 'incident_index', 'incident_type', 'minute', 'added_time',
+        'team_side', 'player_id', 'player_name',
+        'secondary_player_id', 'secondary_player_name',
+        'assist_player_id', 'assist_player_name',
+        'card_type', 'goal_type', 'home_score', 'away_score', 'text',
+    ]),
+    'average_positions.csv': ('bzzoiro_average_positions', [
+        'match_id', 'team_side', 'player_id', 'player_name',
+        'jersey_number', 'position', 'x', 'y',
+    ]),
+    'match_enrichment.csv': ('bzzoiro_match_enrichment', [
+        'match_id', 'travel_distance_km', 'weather_description',
+        'temperature_c', 'wind_speed', 'pitch_condition', 'is_local_derby',
+        'is_neutral_ground', 'attendance', 'lineup_status',
+        'lineup_confidence',
+    ]),
+    'player_match_enrichment.csv': ('bzzoiro_player_match_enrichment', [
+        'player_id', 'match_id', 'player_name', 'rating', 'possession_lost',
+        'attacking_shots_blocked', 'total_passes', 'total_long_balls',
+        'total_crosses', 'total_dribbles', 'ground_duels_lost',
+        'aerial_duels_lost', 'yellow_cards', 'red_cards',
+        'goalkeeper_punches',
     ]),
 }
 
