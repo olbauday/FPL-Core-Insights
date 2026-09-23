@@ -396,5 +396,54 @@ This table contains information about each team from the FPL API.
 **Links:**
 *   `id` links to `home_team` and `away_team` in the `matches` and `fixtures` tables.
 
+---
+
+### `calculated_features`
+
+This is a **derived, analysis-ready** sheet (not raw FPL/Opta data). It provides one row per player per gameweek with 22 engineered, model-friendly features — rolling form, team/opponent strength and position-specific rollups — computed entirely from the Premier League tables in this repository.
+
+*   **Location**: `data/{season}/By Tournament/Premier League/GW{x}/calculated_features.csv`
+*   **Scope**: **Premier League only.** Every feature is derived from Premier League `player_gameweek_stats`, `players`, `playermatchstats`, `matches` and `fixtures`, so the sheet is written only under the Premier League tournament folder and is not produced for the cup / European folders.
+*   **Location note**: the sheet lives **only** under `By Tournament/Premier League` — it is intentionally *not* copied into the `By Gameweek` mirror. That mirror also contains other competitions (cups / Europe), and a copy there would wrongly imply cup fixtures are incorporated into the strength/form features, which they are not.
+*   **Leakage-safe**: rolling values are `shift(1)`-lagged, so a GW `N` row uses only gameweeks 1..N-1 and can be joined onto GW `N` to *predict* it without leaking the target. GW1 rolling features are therefore NaN. `team_elo`/`opp_elo` are the **pre-match** rating entering GW `N` (already a function of GW 1..N-1 only), so they carry the same no-leakage contract while being populated from GW1.
+*   **Per-fixture scale**: the raw `player_gameweek_stats` table sums a player's matches into one row per gameweek, so a double gameweek arrives at ~2× single-fixture scale. Before any rolling feature is computed, GW-summed player stats (points, minutes, xG, xA, defensive contribution, saves, clean sheets, goals, assists, shots on target, box touches, goals prevented) are divided by that team's number of fixtures in the GW, so every rolling feature is a **per-match rate** and double gameweeks don't double it. The divisor is exported as `n_fixtures`. `creativity`/`threat` come from FPL's GW-level table and are not rescaled.
+*   **Double / blank gameweeks**: opponent stats are averaged across both opponents (`has_double_gw = true`); a blank gameweek (no fixture that GW) leaves the team/opponent features NaN and `n_fixtures = 1`.
+*   **Position-specific columns** (the `gkp_`, `def_`, `mid_`, `fwd_` prefixes) are populated only for the relevant position and NaN otherwise.
+
+**Column data dictionary:**
+
+| Column | Type | Description | Window |
+| --- | --- | --- | --- |
+| `player_id` | int | Player id (links to `player_id` in `players`, `id` in `playerstats`). | — |
+| `gameweek` | int | Gameweek (1–38) the features are attached to. | — |
+| `position` | string | Player position (`GKP`/`DEF`/`MID`/`FWD`). | — |
+| `team_code` | int | FPL team code of the player's club. | — |
+| `n_fixtures` | int | Number of fixtures the player's club has in this gameweek (1 for a blank/normal GW, 2+ for a double GW). The per-fixture divisor for GW-summed stats. | this GW |
+| `points_roll3` | float | Mean FPL points (`event_points`), per fixture. | prior 3 GW |
+| `minutes_roll3` | float | Mean minutes played, per fixture. | prior 3 GW |
+| `xg_roll3` | float | Mean match expected goals (xG), per fixture. | prior 3 GW |
+| `xa_roll3` | float | Mean match expected assists (xA), per fixture. | prior 3 GW |
+| `defcon_roll3` | float | Mean defensive contribution (CBIT), per fixture. | prior 3 GW |
+| `team_elo` | float | Player's club Elo entering this gameweek's fixture(s) — the pre-match rating (mean across a double GW's fixtures), used unshifted. | this GW (pre-match) |
+| `opp_elo` | float | Opponent's Elo entering this gameweek's fixture(s) — pre-match rating (averaged over a double GW's opponents), used unshifted. | this GW (pre-match) |
+| `team_xg_for_roll5` | float | Player's club rolling mean xG for. | prior 5 GW |
+| `team_xg_against_roll5` | float | Player's club rolling mean xG conceded. | prior 5 GW |
+| `opp_xg_against_roll5` | float | Opponent's rolling mean xG conceded (averaged over a double GW's opponents). | prior 5 GW |
+| `has_double_gw` | bool | `True`/`False`; `True` if the club has 2+ fixtures in this gameweek. Serialized as `True`/`False` (matching repo convention, e.g. `finished` in `matches`). | this GW |
+| `gkp_saves_roll3` | float | GKP only: mean saves, per fixture. | prior 3 GW |
+| `gkp_goals_prevented_roll3` | float | GKP only: mean goals prevented (xGOT faced minus goals conceded), per fixture. | prior 3 GW |
+| `def_clean_sheet_roll5` | float | DEF only: mean clean sheets, per fixture. | prior 5 GW |
+| `def_attacking_return_rate` | float | DEF only: mean attacking returns (goals + assists), per fixture. | prior 5 GW |
+| `mid_creativity_roll3` | float | MID only: mean creativity (GW-level, not per-fixture rescaled). | prior 3 GW |
+| `mid_threat_roll3` | float | MID only: mean threat (GW-level, not per-fixture rescaled). | prior 3 GW |
+| `mid_shots_on_target_roll3` | float | MID only: mean shots on target, per fixture. | prior 3 GW |
+| `mid_touches_box_roll3` | float | MID only: mean touches in the opposition box, per fixture. | prior 3 GW |
+| `fwd_xg_roll3` | float | FWD only: mean match xG, per fixture. | prior 3 GW |
+| `fwd_shots_on_target_roll3` | float | FWD only: mean shots on target, per fixture. | prior 3 GW |
+| `fwd_touches_box_roll3` | float | FWD only: mean touches in the opposition box, per fixture. | prior 3 GW |
+
+**Links:**
+*   `player_id` links to `player_id` in the `players` table and `id` in the `playerstats` / `player_gameweek_stats` tables.
+
 
 </details>
