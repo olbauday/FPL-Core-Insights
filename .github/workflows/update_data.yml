@@ -36,6 +36,9 @@ jobs:
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
         run: python scripts/export_data.py
 
+      - name: Build calculated features
+        run: python scripts/build_calculated_features.py
+
       - name: Commit and push changes (Data Export)
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
